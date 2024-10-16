@@ -2,6 +2,9 @@
 #define _TASKSYS_H
 
 #include "itasksys.h"
+#include <queue>
+#include <thread>
+#include <stdio.h>
 
 /*
  * TaskSystemSerial: This class is the student's implementation of a
