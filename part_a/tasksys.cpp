@@ -1,6 +1,4 @@
 #include "tasksys.h"
-#include <thread>
-#include <stdio.h>
 
 
 IRunnable::~IRunnable() {}
@@ -103,6 +101,9 @@ void TaskSystemParallelSpawn::sync() {
  * Parallel Thread Pool Spinning Task System Implementation
  * ================================================================
  */
+Task::Task(IRunnable* runnable, int num_total_tasks, int task_id): runnable(runnable), num_total_tasks(num_total_tasks), task_id(task_id) {}
+
+Task::~Task() {}
 
 const char* TaskSystemParallelThreadPoolSpinning::name() {
     return "Parallel + Thread Pool + Spin";
@@ -115,21 +116,52 @@ TaskSystemParallelThreadPoolSpinning::TaskSystemParallelThreadPoolSpinning(int n
     // Implementations are free to add new class member variables
     // (requiring changes to tasksys.h).
     //
+    // std::printf("num_threads: %d\n", num_threads);
+    stop = false;
+    for (int i = 0; i < num_threads; i++) {
+        thread_pool.push_back(std::thread([this] {
+            while (true) {
+                std::lock_guard<std::mutex> lock(task_queue_mutex);
+                if (!task_queue.empty()) {
+                    Task task = task_queue.front();
+                    task_queue.pop();
+                    task.runnable->runTask(task.task_id, task.num_total_tasks);
+                } else {
+                    if (stop) {
+                        break;
+                    }
+                }
+            }
+        }));
+    }
 }
 
-TaskSystemParallelThreadPoolSpinning::~TaskSystemParallelThreadPoolSpinning() {}
+TaskSystemParallelThreadPoolSpinning::~TaskSystemParallelThreadPoolSpinning() {
+    stop = true;
+    for (int i = 0; i < thread_pool.size(); i++) {
+        thread_pool[i].join();
+    }
+}
 
 void TaskSystemParallelThreadPoolSpinning::run(IRunnable* runnable, int num_total_tasks) {
-
-
     //
     // TODO: CS149 students will modify the implementation of this
     // method in Part A.  The implementation provided below runs all
     // tasks sequentially on the calling thread.
     //
 
+    // for (int i = 0; i < num_total_tasks; i++) {
+    //     runnable->runTask(i, num_total_tasks);
+    // }
     for (int i = 0; i < num_total_tasks; i++) {
-        runnable->runTask(i, num_total_tasks);
+        std::lock_guard<std::mutex> lock(task_queue_mutex);
+        task_queue.push(Task(runnable, num_total_tasks, i));
+    }
+    while (true) {
+        std::lock_guard<std::mutex> lock(task_queue_mutex);
+        if (task_queue.empty()) {
+            break;
+        }
     }
 }
 

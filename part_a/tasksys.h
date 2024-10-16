@@ -36,6 +36,15 @@ class TaskSystemParallelSpawn: public ITaskSystem {
         void sync();
 };
 
+class Task {
+    public:
+        IRunnable* runnable;
+        int num_total_tasks;
+        int task_id;
+        Task(IRunnable* runnable, int num_total_tasks, int task_id);
+        ~Task();
+};
+
 /*
  * TaskSystemParallelThreadPoolSpinning: This class is the student's
  * implementation of a parallel task execution engine that uses a
@@ -44,6 +53,10 @@ class TaskSystemParallelSpawn: public ITaskSystem {
  */
 class TaskSystemParallelThreadPoolSpinning: public ITaskSystem {
     public:
+        std::vector<std::thread> thread_pool;
+        std::queue<Task> task_queue;
+        std::mutex task_queue_mutex;
+        bool stop;
         TaskSystemParallelThreadPoolSpinning(int num_threads);
         ~TaskSystemParallelThreadPoolSpinning();
         const char* name();
