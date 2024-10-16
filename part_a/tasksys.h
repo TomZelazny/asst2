@@ -31,6 +31,7 @@ class TaskSystemSerial: public ITaskSystem {
  */
 class TaskSystemParallelSpawn: public ITaskSystem {
     public:
+        int num_threads;
         TaskSystemParallelSpawn(int num_threads);
         ~TaskSystemParallelSpawn();
         const char* name();
@@ -60,7 +61,8 @@ class TaskSystemParallelThreadPoolSpinning: public ITaskSystem {
         std::vector<std::thread> thread_pool;
         std::queue<Task> task_queue;
         std::mutex task_queue_mutex;
-        bool stop;
+        std::atomic<bool> stop;
+        std::atomic<int> task_remainings;
         TaskSystemParallelThreadPoolSpinning(int num_threads);
         ~TaskSystemParallelThreadPoolSpinning();
         const char* name();
