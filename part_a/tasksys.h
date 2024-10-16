@@ -2,6 +2,7 @@
 #define _TASKSYS_H
 
 #include "itasksys.h"
+#include <atomic>
 #include <queue>
 #include <mutex>
 #include <thread>
