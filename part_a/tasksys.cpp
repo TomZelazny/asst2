@@ -1,6 +1,5 @@
 #include "tasksys.h"
 
-
 IRunnable::~IRunnable() {}
 
 ITaskSystem::ITaskSystem(int num_threads) {}
@@ -126,10 +125,8 @@ TaskSystemParallelThreadPoolSpinning::TaskSystemParallelThreadPoolSpinning(int n
                     Task task = task_queue.front();
                     task_queue.pop();
                     task.runnable->runTask(task.task_id, task.num_total_tasks);
-                } else {
-                    if (stop) {
+                } else if (stop) {
                         break;
-                    }
                 }
             }
         }));

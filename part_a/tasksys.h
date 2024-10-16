@@ -3,6 +3,7 @@
 
 #include "itasksys.h"
 #include <queue>
+#include <mutex>
 #include <thread>
 #include <stdio.h>
 
