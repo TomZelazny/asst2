@@ -81,6 +81,12 @@ class TaskSystemParallelThreadPoolSpinning: public ITaskSystem {
  */
 class TaskSystemParallelThreadPoolSleeping: public ITaskSystem {
     public:
+        std::vector<std::thread> thread_pool;
+        std::queue<Task> task_queue;
+        std::mutex task_queue_mutex;
+        std::condition_variable cv;
+        std::atomic<bool> stop;
+        std::atomic<int> task_remainings;
         TaskSystemParallelThreadPoolSleeping(int num_threads);
         ~TaskSystemParallelThreadPoolSleeping();
         const char* name();
