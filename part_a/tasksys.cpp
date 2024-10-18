@@ -54,6 +54,7 @@ TaskSystemParallelSpawn::TaskSystemParallelSpawn(int num_threads): ITaskSystem(n
     // Implementations are free to add new class member variables
     // (requiring changes to tasksys.h).
     //
+    this->num_threads = num_threads;
 }
 
 TaskSystemParallelSpawn::~TaskSystemParallelSpawn() {}
@@ -71,13 +72,32 @@ void TaskSystemParallelSpawn::run(IRunnable* runnable, int num_total_tasks) {
     //     runnable->runTask(i, num_total_tasks);
     // }
 
-    // Create a thread for each task
-    std::vector<std::thread> threads;
+    std::thread threads[num_threads];
+    std::vector<int> task_ids;
+    std::mutex task_ids_mutex;
     for (int i = 0; i < num_total_tasks; i++) {
-        threads.push_back(std::thread(&IRunnable::runTask, runnable, i, num_total_tasks));
+        task_ids.push_back(i);
     }
-    // Wait for all threads to finish
-    for (int i = 0; i < num_total_tasks; i++) {
+    for (int i = 0; i < num_threads; i++) {
+        threads[i] = std::thread([&task_ids, &task_ids_mutex, runnable, num_total_tasks] {
+            while (true) {
+                int task_id = -1;
+                {
+                    std::lock_guard<std::mutex> lock(task_ids_mutex);
+                    if (!task_ids.empty()) {
+                        task_id = task_ids.back();
+                        task_ids.pop_back();
+                    }
+                }
+                if (task_id != -1) {
+                    runnable->runTask(task_id, num_total_tasks);
+                } else {
+                    break;
+                }
+            }
+        });
+    }
+    for (int i = 0; i < num_threads; i++) {
         threads[i].join();
     }
 }
@@ -115,16 +135,23 @@ TaskSystemParallelThreadPoolSpinning::TaskSystemParallelThreadPoolSpinning(int n
     //
     // std::printf("num_threads: %d\n", num_threads);
     stop = false;
+    task_remainings = 0;
     for (int i = 0; i < num_threads; i++) {
         thread_pool.push_back(std::thread([this] {
             while (true) {
-                std::lock_guard<std::mutex> lock(task_queue_mutex);
-                if (!task_queue.empty()) {
-                    Task task = task_queue.front();
-                    task_queue.pop();
+                Task task(nullptr, 0, 0);
+                {
+                    std::lock_guard<std::mutex> lock(task_queue_mutex);
+                    if (!task_queue.empty()) {
+                        task = task_queue.front();
+                        task_queue.pop();
+                    }
+                }
+                if (task.runnable != nullptr) {
                     task.runnable->runTask(task.task_id, task.num_total_tasks);
-                } else if (stop) {
-                        break;
+                    task_remainings--;
+                } else if (stop && task_queue.empty()) {
+                    break;
                 }
             }
         }));
@@ -148,13 +175,15 @@ void TaskSystemParallelThreadPoolSpinning::run(IRunnable* runnable, int num_tota
     // for (int i = 0; i < num_total_tasks; i++) {
     //     runnable->runTask(i, num_total_tasks);
     // }
-    for (int i = 0; i < num_total_tasks; i++) {
+    task_remainings = num_total_tasks;
+    {
         std::lock_guard<std::mutex> lock(task_queue_mutex);
-        task_queue.push(Task(runnable, num_total_tasks, i));
+        for (int i = 0; i < num_total_tasks; i++) {
+            task_queue.push(Task(runnable, num_total_tasks, i));
+        }
     }
     while (true) {
-        std::lock_guard<std::mutex> lock(task_queue_mutex);
-        if (task_queue.empty()) {
+        if (task_remainings == 0) {
             break;
         }
     }
