@@ -2,6 +2,12 @@
 #define _TASKSYS_H
 
 #include "itasksys.h"
+#include <atomic>
+#include <condition_variable>
+#include <queue>
+#include <mutex>
+#include <thread>
+#include <stdio.h>
 
 /*
  * TaskSystemSerial: This class is the student's implementation of a
@@ -53,6 +59,15 @@ class TaskSystemParallelThreadPoolSpinning: public ITaskSystem {
         void sync();
 };
 
+class Task {
+    public:
+        IRunnable* runnable;
+        int num_total_tasks;
+        int task_id;
+        Task(IRunnable* runnable, int num_total_tasks, int task_id);
+        ~Task();
+};
+
 /*
  * TaskSystemParallelThreadPoolSleeping: This class is the student's
  * optimized implementation of a parallel task execution engine that uses
@@ -61,6 +76,12 @@ class TaskSystemParallelThreadPoolSpinning: public ITaskSystem {
  */
 class TaskSystemParallelThreadPoolSleeping: public ITaskSystem {
     public:
+        std::vector<std::thread> thread_pool;
+        std::queue<Task> task_queue;
+        std::mutex task_queue_mutex;
+        std::condition_variable cv;
+        std::atomic<bool> stop;
+        std::atomic<int> task_remainings;
         TaskSystemParallelThreadPoolSleeping(int num_threads);
         ~TaskSystemParallelThreadPoolSleeping();
         const char* name();
