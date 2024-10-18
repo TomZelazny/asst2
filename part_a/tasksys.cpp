@@ -236,11 +236,14 @@ TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int n
                 }
                 if (task.runnable != nullptr) {
                     task.runnable->runTask(task.task_id, task.num_total_tasks);
-                    {
-                        std::lock_guard<std::mutex> lock(task_queue_mutex);
-                        task_remainings--;
+                    // {
+                    //     std::lock_guard<std::mutex> lock(task_queue_mutex);
+                    //     task_remainings--;
+                    // }
+                    // cv.notify_all();
+                    if (task_remainings.fetch_sub(1) == 1) {
+                        cv.notify_all();
                     }
-                    cv.notify_all();
                 }
             }
         }));
