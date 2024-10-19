@@ -59,12 +59,23 @@ class TaskSystemParallelThreadPoolSpinning: public ITaskSystem {
         void sync();
 };
 
+class Job {
+    public:
+        IRunnable* runnable;
+        int num_total_tasks;
+        int job_id;
+        TaskID task_id;
+        Job(IRunnable* runnable, int num_total_tasks, int job_id, TaskID task_id);
+        ~Job();
+};
+
 class Task {
     public:
         IRunnable* runnable;
         int num_total_tasks;
-        int task_id;
-        Task(IRunnable* runnable, int num_total_tasks, int task_id);
+        TaskID task_id;
+        std::vector<TaskID> deps;
+        Task(IRunnable* runnable, int num_total_tasks, TaskID task_id, std::vector<TaskID> deps);
         ~Task();
 };
 
@@ -76,12 +87,18 @@ class Task {
  */
 class TaskSystemParallelThreadPoolSleeping: public ITaskSystem {
     public:
-        std::vector<std::thread> thread_pool;
-        std::queue<Task> task_queue;
-        std::mutex task_queue_mutex;
+        std::vector<std::thread> worker_thread_pool;
+        std::queue<Job> job_queue;
+        std::vector<Task> waiting_tasks;
+        std::deque<std::atomic<int>> task_remaining_jobs;
+        std::mutex mutex;
         std::condition_variable cv;
         std::atomic<bool> stop;
-        std::atomic<int> task_remainings;
+        std::atomic<int> remaining_tasks;
+
+        void worker_function();
+        void process_waiting_tasks();
+
         TaskSystemParallelThreadPoolSleeping(int num_threads);
         ~TaskSystemParallelThreadPoolSleeping();
         const char* name();
