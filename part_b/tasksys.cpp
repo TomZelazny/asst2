@@ -141,7 +141,7 @@ void TaskSystemParallelThreadPoolSleeping::worker_function() {
         {
             std::unique_lock<std::mutex> lock(mutex);
             cv.wait(lock, [this] { return !job_queue.empty() || stop; });
-            if (stop && job_queue.empty()) {
+            if (stop && job_queue.empty() && waiting_tasks.empty()) {
                 break;
             }
             if (!job_queue.empty()) {
@@ -158,7 +158,9 @@ void TaskSystemParallelThreadPoolSleeping::worker_function() {
         if (job.runnable != nullptr) {
             job.runnable->runTask(job.job_id, job.num_total_tasks);
             if (task_remaining_jobs[job.task_id].fetch_sub(1) == 1) {
+                remaining_tasks -= 1;
                 cv.notify_all();
+                process_waiting_tasks();
             }
         }
     }
