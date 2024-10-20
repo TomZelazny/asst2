@@ -4,6 +4,7 @@
 #include "itasksys.h"
 #include <atomic>
 #include <condition_variable>
+#include <unordered_map>
 #include <queue>
 #include <mutex>
 #include <thread>
@@ -95,6 +96,8 @@ class TaskSystemParallelThreadPoolSleeping: public ITaskSystem {
         std::condition_variable cv;
         std::atomic<bool> stop;
         std::atomic<int> remaining_tasks;
+        std::unordered_map<TaskID, int> dependency_count;
+        std::unordered_map<TaskID, std::vector<TaskID>> dependencies;  // task_id -> task_ids that depend on it
 
         void worker_function();
         void process_waiting_tasks();

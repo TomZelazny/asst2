@@ -159,6 +159,12 @@ void TaskSystemParallelThreadPoolSleeping::worker_function() {
             job.runnable->runTask(job.job_id, job.num_total_tasks);
             if (task_remaining_jobs[job.task_id].fetch_sub(1) == 1) {
                 remaining_tasks -= 1;
+                {
+                    std::lock_guard<std::mutex> lock(mutex);
+                    for (int i = 0; i < dependencies[job.task_id].size(); i++) {
+                        dependency_count[dependencies[job.task_id][i]] -= 1;
+                    }
+                }
                 cv.notify_all();
                 process_waiting_tasks();
             }
@@ -171,14 +177,7 @@ void TaskSystemParallelThreadPoolSleeping::process_waiting_tasks() {
     {
         std::unique_lock<std::mutex> lock(mutex);
         for (auto it = waiting_tasks.begin(); it != waiting_tasks.end(); ) {
-            bool ready = true;
-
-            for (int i = 0; i < it->deps.size(); i++) {
-                if (task_remaining_jobs[it->deps[i]] != 0) {
-                    ready = false;
-                    break;
-                }
-            }
+            bool ready = dependency_count[it->task_id] == 0;
             if (ready) {
                 ready_tasks.push_back(*it);
                 it = waiting_tasks.erase(it);
@@ -236,7 +235,7 @@ void TaskSystemParallelThreadPoolSleeping::run(IRunnable* runnable, int num_tota
     //
 
     task_remaining_jobs.emplace_back(num_total_tasks);
-    remaining_tasks += 1;
+    // remaining_tasks += 1;
 
     {
         std::lock_guard<std::mutex> lock(mutex);
@@ -252,7 +251,7 @@ void TaskSystemParallelThreadPoolSleeping::run(IRunnable* runnable, int num_tota
     cv.wait(lock, [this] { return task_remaining_jobs[0] == 0; });
 
     task_remaining_jobs.pop_back();
-    remaining_tasks -= 1;
+    // remaining_tasks -= 1;
 }
 
 TaskID TaskSystemParallelThreadPoolSleeping::runAsyncWithDeps(IRunnable* runnable, int num_total_tasks,
@@ -268,6 +267,13 @@ TaskID TaskSystemParallelThreadPoolSleeping::runAsyncWithDeps(IRunnable* runnabl
     std::unique_lock<std::mutex> lock(mutex);
     task_id = task_remaining_jobs.size();
     task_remaining_jobs.emplace_back(num_total_tasks);
+    dependency_count[task_id] = deps.size();
+    for (int i = 0; i < deps.size(); i++) {
+        if (dependencies.find(deps[i]) == dependencies.end()) {
+            dependencies[deps[i]] = std::vector<TaskID>();
+        }
+        dependencies[deps[i]].push_back(task_id);
+    }
 
     bool ready = true;
     for (int i = 0; i < deps.size(); i++) {
@@ -297,4 +303,6 @@ void TaskSystemParallelThreadPoolSleeping::sync() {
     std::unique_lock<std::mutex> lock(mutex);
     cv.wait(lock, [this] { return remaining_tasks == 0; });
     task_remaining_jobs.clear();
+    dependency_count.clear();
+    dependencies.clear();
 }
