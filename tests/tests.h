@@ -76,17 +76,62 @@ TestResults yourTest(ITaskSystem* t, bool do_async, int num_elements, int num_bu
     int* output = new int[num_elements];
 
     // TODO: instantiate your bulk task launches
+    IRunnable* task_a = new SleepTask(1);
+    IRunnable* task_b = new SleepTask(20);
+    IRunnable* task_c = new SleepTask(10);
+    IRunnable* task_d = new SleepTask(5);
+    IRunnable* task_e = new SleepTask(15);
+    IRunnable* task_f = new SleepTask(50);
+    IRunnable* task_g = new SleepTask(1);
+    IRunnable* task_h = new SleepTask(5);
+    IRunnable* task_i = new SleepTask(15);
+    IRunnable* task_j = new SleepTask(50);
+
+    std::vector<TaskID> a_deps;
+    std::vector<TaskID> b_deps;
+    std::vector<TaskID> c_deps;
+    std::vector<TaskID> d_deps;
+    std::vector<TaskID> e_deps;
+    std::vector<TaskID> f_deps;
+    std::vector<TaskID> g_deps;
+    std::vector<TaskID> h_deps;
+    std::vector<TaskID> i_deps;
+    std::vector<TaskID> j_deps;
 
     // Run the test
     double start_time = CycleTimer::currentSeconds();
-    if (do_async) {
-        // TODO:
-        // initialize dependency vector
-        // make calls to t->runAsyncWithDeps and push TaskID to dependency vector
-        // t->sync() at end
-    } else {
-        // TODO: make calls to t->run
-    }
+    auto a_taskid = t->runAsyncWithDeps(a, 10, a_deps);
+    auto b_taskid = t->runAsyncWithDeps(b, 10, b_deps);
+    auto c_taskid = t->runAsyncWithDeps(c, 10, c_deps);
+
+    d_deps.push_back(a_taskid, b_taskid);
+    auto d_taskid = t->runAsyncWithDeps(d, 10, d_deps);
+    
+    e_deps.push_back(b_taskid, c_taskid);
+    auto e_taskid = t->runAsyncWithDeps(e, 10, e_deps);
+    
+    f_deps.push_back(c_taskid, d_taskid);
+    auto f_taskid = t->runAsyncWithDeps(f, 10, f_deps);
+    
+    g_deps.push_back(c_taskid, d_taskid, e_taskid);
+    auto g_taskid = t->runAsyncWithDeps(g, 10, g_deps);
+
+    h_deps.push_back(b_taskid, f_taskid, g_taskid);
+    auto h_taskid = t->runAsyncWithDeps(h, 10, h_deps);
+    
+    auto i_taskid = t->runAsyncWithDeps(i, 10, i_deps);
+    j_deps.push_back(i_taskid);
+    auto j_taskid = t->runAsyncWithDeps(j, 10, j_deps);
+
+    // if (do_async) {
+    //     // TODO:
+    //     // initialize dependency vector
+    //     // make calls to t->runAsyncWithDeps and push TaskID to dependency vector
+    //     // t->sync() at end
+    // } else {
+    //     // TODO: make calls to t->run
+    // }
+    t->sync();
     double end_time = CycleTimer::currentSeconds();
 
     // Correctness validation
@@ -108,7 +153,17 @@ TestResults yourTest(ITaskSystem* t, bool do_async, int num_elements, int num_bu
     }
     results.time = end_time - start_time;
 
-    delete [] output;
+    // delete [] output;
+    delete task_a;
+    delete task_b;
+    delete task_c;
+    delete task_d;
+    delete task_e;
+    delete task_f;
+    delete task_g;
+    delete task_h;
+    delete task_i;
+    delete task_j;
 
     return results;
 }
